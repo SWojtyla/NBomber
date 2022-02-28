@@ -163,31 +163,29 @@ let createScenarioInfo (scenarioName: string, duration: TimeSpan, threadNumber: 
       ScenarioName = scenarioName
       ScenarioDuration = duration }
 
+let createScenario (scn: Contracts.Scenario) = result {
+    let! timeline = scn.LoadSimulations |> LoadTimeLine.createWithDuration
+    let! scenario = Validation.validate(scn)
+
+    return { ScenarioName = scenario.ScenarioName
+             Init = scenario.Init
+             Clean = scenario.Clean
+             Steps = scenario.Steps |> ClientFactory.updateName(scenario.ScenarioName)
+             LoadTimeLine = timeline.LoadTimeLine
+             WarmUpDuration = scenario.WarmUpDuration
+             PlanedDuration = timeline.ScenarioDuration
+             ExecutedDuration = None
+             CustomSettings = ""
+             GetStepsOrder = scenario.GetStepsOrder
+             IsEnabled = true }
+}
+
 let createScenarios (scenarios: Contracts.Scenario list) = result {
-
-    let create (scn: Contracts.Scenario) = result {
-        let! timeline = scn.LoadSimulations |> LoadTimeLine.createWithDuration
-        let! scenario = Validation.validate(scn)
-
-        return { ScenarioName = scenario.ScenarioName
-                 Init = scenario.Init
-                 Clean = scenario.Clean
-                 Steps = scenario.Steps |> ClientFactory.updateName(scenario.ScenarioName)
-                 LoadTimeLine = timeline.LoadTimeLine
-                 WarmUpDuration = scenario.WarmUpDuration
-                 PlanedDuration = timeline.ScenarioDuration
-                 ExecutedDuration = None
-                 CustomSettings = ""
-                 GetStepsOrder = scenario.GetStepsOrder
-                 IsEnabled = true }
-    }
-
     let! vScns = scenarios |> Validation.checkDuplicateScenarioName
-
     return! vScns
-            |> List.map(create)
+            |> List.map createScenario
             |> Result.sequence
-            |> Result.mapError(List.head)
+            |> Result.mapError List.head
 }
 
 let filterTargetScenarios (targetScenarios: string list) (scenarios: Scenario list) =
